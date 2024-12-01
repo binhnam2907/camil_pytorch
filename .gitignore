@@ -26,3 +26,7 @@ data/weights/*
 
 src/camil_bk.py
 src/camil_bk2.py 
+
+data/raw_data/*
+data/transform_data/*
+

@@ -12,7 +12,7 @@ class FCLayer(nn.Module):
         return feats, x
 
 
-class IClassifier(nn.Module):
+class IClassifier1(nn.Module):
     def __init__(self, feature_extractor, feature_size, output_class):
         super(IClassifier, self).__init__()
 
@@ -21,6 +21,30 @@ class IClassifier(nn.Module):
 
     def forward(self, x):
         device = x.device
+        feats = self.feature_extractor(x)  # N x K
+        c = self.fc(feats.view(feats.shape[0], -1))  # N x C
+        return feats.view(feats.shape[0], -1), c
+
+class IClassifier_loadDINO(nn.Module):
+    def __init__(self, feature_extractor, feature_size, output_class):
+        super(IClassifier, self).__init__()
+        self.feature_extractor = feature_extractor
+        self.fc = nn.Linear(feature_size, output_class)
+    
+    def forward(self, x):
+        feats = self.feature_extractor(x)  # N x feature_size
+        if feats.dim() > 2:
+            feats = feats.view(feats.size(0), -1)
+        c = self.fc(feats)
+        return feats, c
+    
+class IClassifier(nn.Module):
+    def __init__(self, feature_extractor, feature_size, output_class):
+        super(IClassifier, self).__init__()
+        self.feature_extractor = feature_extractor
+        self.fc = nn.Linear(feature_size, output_class)
+
+    def forward(self, x):
         feats = self.feature_extractor(x)  # N x K
         c = self.fc(feats.view(feats.shape[0], -1))  # N x C
         return feats.view(feats.shape[0], -1), c

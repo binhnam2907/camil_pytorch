@@ -185,11 +185,11 @@ def main():
     parser.add_argument('--num_feats', default=512, type=int, help='Feature size')
     parser.add_argument('--batch_size', default=128, type=int, help='Batch size of dataloader')
     parser.add_argument('--num_workers', default=0, type=int, help='Number of threads for datalodaer')
-    parser.add_argument('--dataset', default="data/transform_data/patches/*", type=str, help='path to patches')
-    parser.add_argument('--backbone', default='resnet18', type=str, help='Embedder backbone')
-    parser.add_argument('--weights', default="weight/weight_feat/model-v0.pth", type=str, help='path to the pretrained weights')
-    parser.add_argument('--output', default="data/feature_data", type=str, help='path to the output feature folder')
-    parser.add_argument('--slide_dir', default="data/raw_data", type=str, help='path to the output graph folder')
+    parser.add_argument('--dataset', default="/Users/binhnam/Desktop/camil_pytorch/data/transform_data/patches/*", type=str, help='path to patches')
+    parser.add_argument('--backbone', default='dino_vitb8', type=str, help='Embedder backbone')
+    parser.add_argument('--weights', default="/Users/binhnam/Desktop/camil_pytorch/weight/weight_feat/dino_vitbase8_pretrain.pth", type=str, help='path to the pretrained weights')
+    parser.add_argument('--output', default="feature_extractor/data/feature_data", type=str, help='path to the output feature folder')
+    parser.add_argument('--slide_dir', default="/Users/binhnam/Desktop/camil_pytorch/data/raw_data", type=str, help='path to the output graph folder')
     args = parser.parse_args()
 
     def load_model_weights(model, weights):
@@ -215,27 +215,84 @@ def main():
     if args.backbone == 'resnet101':
         resnet = models.resnet101(weights=None, norm_layer=nn.InstanceNorm2d)
         num_feats = 2048
+    # if args.backbone == 'dino_vitb8':
+    #     # resnet = torch.hub.load('facebookresearch/dino:main', 'dino_vitb8', pretrained=False)
+    #     resnet = torch.hub.load('facebookresearch/dinov2', 'dinov2_vitb14', pretrained=False)
+    #     num_feats = 768  # ViT-Base output size
+
+    #     # Load the pre-trained weights
+    #     if not os.path.exists(args.weights):
+    #         print(f"Pre-trained weights not found at {args.weights}")
+    #         return
+    #     state_dict_weights = torch.load(args.weights, map_location='cpu')
+    #     resnet.load_state_dict(state_dict_weights, strict=True)
+
+    #     # Remove the classification head
+    #     resnet.head = nn.Identity()
+
+    #     # Freeze the model parameters
+    #     for param in resnet.parameters():
+    #         param.requires_grad = False
+    # else:
+    #     raise ValueError(f"Unsupported backbone: {args.backbone}")
+
+    # # Initialize the classifier
+    # i_classifier = cl.IClassifier(resnet, num_feats, output_class=args.num_classes)
+    # i_classifier.to(device)
+
+    # # Ensure the output directory exists
+    # os.makedirs(args.output, exist_ok=True)
+
+    # # Load data
+    # bags_list = glob.glob(args.dataset)
+    # if not bags_list:
+    #     print(f"No data found at {args.dataset}")
+    #     return
+    # else:
+    #     print(f"Found {len(bags_list)} bags.")
+
+    # # Compute features
+    # compute_feats(bags_list, i_classifier, args.slide_dir, args.output)
+    
+    if args.backbone == 'dino_vitb8':
+        # Load the DINO ViT-B/8 model
+        resnet = torch.hub.load('facebookresearch/dino:main', 'dino_vitb8', pretrained=False)
+        num_feats = 768  # ViT-Base output size
+
+        # Load the pre-trained weights
+        if not os.path.exists(args.weights):
+            print(f"Pre-trained weights not found at {args.weights}")
+            return
+        state_dict_weights = torch.load(args.weights, map_location='cpu')
+        resnet.load_state_dict(state_dict_weights, strict=True)
+        # Remove the classification head
+    resnet.head = nn.Identity()
+
+    # Freeze the model parameters
     for param in resnet.parameters():
         param.requires_grad = False
-    resnet.fc = nn.Identity()
-    i_classifier = cl.IClassifier(resnet, num_feats, output_class=args.num_classes) #.cuda()
+    print(resnet)
+    # Initialize the classifier
+    i_classifier = cl.IClassifier(resnet, num_feats, output_class=args.num_classes)
+    i_classifier.to(device)
 
-    # load feature extractor
-    if args.weights is None:
-        print('No feature extractor')
-        return
-
+    # Ensure the output directory exists
     os.makedirs(args.output, exist_ok=True)
+
+    # Load data
     bags_list = glob.glob(args.dataset)
+    if not bags_list:
+        print(f"No data found at {args.dataset}")
+        return
+    else:
+        print(f"Found {len(bags_list)} bags.")
 
-
-    state_dict_weights = torch.load(args.weights, map_location=torch.device('cpu'))
-    state_dict_init = i_classifier.state_dict()
-    new_state_dict = OrderedDict()
-    for (k, v), (k_0, v_0) in zip(state_dict_weights.items(), state_dict_init.items()):
-        name = k_0
-        new_state_dict[name] = v
-    i_classifier.load_state_dict(new_state_dict, strict=False)
+    # Compute features (Assuming 'compute_feats' is defined elsewhere)
     compute_feats(bags_list, i_classifier, args.slide_dir, args.output)
+    
+    
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"An error occurred: {e}")
